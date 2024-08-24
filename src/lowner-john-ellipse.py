@@ -43,8 +43,8 @@ def welzl(interior, boundary=np.zeros((0, 2))):
         else:
             return ellipse_from_boundary5(boundary)
 
-    # choose a random point in the interior set
-    i = np.random.randint(interior.shape[0])
+    # choose an arbitrary point in the interior set
+    i = -1
     p = interior[i, :]
 
     # remove point from interior set
@@ -82,6 +82,7 @@ def ellipse_from_boundary5(S):
             center, a and b are the major and minor radii, and t is the
             rotation angle.
     """
+    assert S.shape == (5, 2)
 
     # find parameters of ellipse given in the form
     # s0 * x ** 2 + s1 * y ** 2 + 2 * s2 * x * y + s3 * x + s4 * y + 1 = 0.
@@ -93,7 +94,7 @@ def ellipse_from_boundary5(S):
 
     # if A is close to singular, then at least 3 points are colinear, in which
     # case an ellipse is not unique, then we give up on this ellipse
-    if np.linalg.cond(A) >= 1 / np.finfo(float).eps:
+    if is_singular(A):
         return None
 
     # solve system of equations
@@ -133,6 +134,7 @@ def ellipse_from_boundary4(S):
             rotation angle. This ellipse is the ellipse with the smallest
             area that passes through the 4 points.
     """
+    assert S.shape == (4, 2)
 
     # sort coordinates in clockwise order
     Sc = S - np.mean(S, axis=0)
@@ -141,6 +143,11 @@ def ellipse_from_boundary4(S):
 
     # find intersection point of diagonals
     A = np.column_stack([S[2, :] - S[0, :], S[1, :] - S[3, :]])
+
+    # if A is singular, give up on this ellipse
+    if is_singular(A):
+        return None
+
     b = S[1, :] - S[0, :]
     s = np.linalg.solve(A, b)
     diag_intersect = S[0, :] + s[0] * (S[2, :] - S[0, :])
@@ -195,6 +202,8 @@ def ellipse_from_boundary4(S):
     # find enclosing circle
     boundary = S[:-1, :]  # only 3 points are needed
     A = np.vstack([-2 * boundary.T, np.ones(boundary.shape[0])]).T
+    if is_singular(A):
+        return None
     b = -np.sum(boundary**2, axis=1)
     s = np.linalg.solve(A, b)
 
@@ -226,12 +235,18 @@ def ellipse_from_boundary3(S):
             rotation angle. This ellipse is the ellipse with the smallest
             area that passes through the 3 points.
     """
+    assert S.shape == (3, 2)
 
     # centroid
     c = np.mean(S, axis=0)
 
     # shift points
     Sc = S - c
+
+    # if Sc is close to singular, then the 3 points are colinear, in which
+    # case an ellipse is not unique, then we give up on this ellipse
+    if is_singular(Sc):
+        return None
 
     # ellipse matrix (center form)
     F = 1.5 * np.linalg.inv(Sc.T.dot(Sc))
@@ -314,6 +329,19 @@ def is_in_ellipse(point, ellipse):
     return v.T.dot(F.dot(v)) <= 1
 
 
+def is_singular(A):
+    """Checks if matrix is close to singular.
+
+    Args:
+        A: matrix
+
+    Returns:
+        bool: True if A is close to singular.
+    """
+
+    return np.linalg.cond(A) >= 1 / np.finfo(float).eps
+
+
 #####################
 # plotting function #
 #####################
@@ -385,8 +413,7 @@ def main():
     plt.figure()
 
     # generate random points in R2
-    # points = np.random.randn(10, 2)
-    points = np.array([[-1, 0], [0, 0], [1, 0], [0, 1]])
+    points = np.random.randn(10, 2)
     plt.plot(points[:, 0], points[:, 1], ".")
 
     # find enclosing ellipse
