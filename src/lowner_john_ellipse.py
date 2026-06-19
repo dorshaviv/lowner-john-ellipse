@@ -135,9 +135,22 @@ def is_in_ellipse(point, ellipse):
     # matrix F parametrizing ellipse in center form:
     # (x - c)^T * F * (x - c) = 1
     F = rot_mat.T.dot(
-        np.diag(1 / np.array([a, b], dtype=np.float) ** 2)).dot(rot_mat)
+        np.diag(1 / np.array([a, b], dtype=float) ** 2)).dot(rot_mat)
 
     return v.T.dot(F.dot(v)) <= 1
+
+
+def is_singular(A):
+    """Checks if matrix is close to singular.
+
+    Args:
+        A: matrix
+
+    Returns:
+        bool: True if A is close to singular.
+    """
+
+    return np.linalg.cond(A) >= 1 / np.finfo(float).eps
 
 
 ##########################################################
@@ -172,7 +185,7 @@ def ellipse_from_boundary5(S):
 
     # if A is close to singular, then at least 3 points are colinear, in which
     # case an ellipse is not unique, then we give up on this ellipse
-    if np.linalg.cond(A) >= 1 / np.finfo(float).eps:
+    if is_singular(A):
         return None
 
     # solve system of equations
@@ -219,7 +232,7 @@ def ellipse_from_boundary4(S):
     # if A is close to singular, then at least 3 points are colinear, in which
     # case an ellipse is not unique, then we give up on this ellipse
     A = np.column_stack([S[2, :] - S[0, :], S[1, :] - S[3, :]])
-    if np.linalg.cond(A) >= 1 / np.finfo(float).eps:
+    if is_singular(A):
         return None
 
     # find intersection point of diagonals
@@ -239,13 +252,13 @@ def ellipse_from_boundary4(S):
 
     # shear parallel to x-axis to make diagonals perpendicular
     m = (S[1, 0] - S[3, 0]) / (S[3, 1] - S[1, 1])
-    shear_mat = np.array([[1, m], [0, 1]], dtype=np.float)
+    shear_mat = np.array([[1, m], [0, 1]], dtype=float)
     S = shear_mat.dot(S.T).T
 
     # make the quadrilateral cyclic (i.e. all vertices lie on a circle)
     b = np.linalg.norm(S, axis=1)
     d = b[1] * b[3] / (b[2] * b[0])
-    stretch_mat = np.diag(np.array([d ** .25, d ** -.25], dtype=np.float))
+    stretch_mat = np.diag(np.array([d ** .25, d ** -.25], dtype=float))
     S = stretch_mat.dot(S.T).T
 
     # compute optimal swing angle by solving cubic equation
@@ -313,7 +326,7 @@ def ellipse_from_boundary3(S):
 
     # if A is close to singular, then the 3 points are colinear, in which
     # case the ellipse is degenerate
-    if np.linalg.cond(A) >= 1 / np.finfo(float).eps:
+    if is_singular(A):
         return None
 
     # ellipse matrix (center form)
